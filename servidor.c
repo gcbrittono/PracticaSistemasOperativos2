@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <arpa/inet.h>
 
+#define PORT 3535
 #define HASH_SIZE 1000
 #define BACKLOG 8
 #define MSGSIZE 32
@@ -137,7 +138,7 @@ struct ListNode *readHashTable(){
 	}
 	return hashTable;
 }
-int main(){
+int main(int argc, char const *argv[]){
 	
 	struct DogType *mascota;
 	mascota = malloc(sizeof(struct DogType));
@@ -148,28 +149,35 @@ int main(){
 
 	socklen_t tama;
 	struct sockaddr_in server, client;
-	int servfd, clientfd, r; 
+	int servfd, clientfd, r,r1; 
 	char msg[32];
 	int msgInd;
 	int msgInd_int;
-	tama = sizeof(struct sockaddr);
-
+	
+	
+	//Creación del descriptor del socket para el servidor
+	//Opciones son IPv4, TCP, 0 par IP 
 	servfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(servfd == -1){
 		perror("Error en socket");
 		exit(-1);
 	}
-	// configuracion para poder utilizar el sockect repetidas veces
-	if (setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0){
+
+	// configuracion para poder utilizar el sockect repetidas veces y dar configuraciones al puerto
+	if (setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &(int){ 1 }, sizeof(int)) < 0){
     		perror("setsockopt(SO_REUSEADDR) failed");
 	}
 
+	//Aqui se fijan los parametros de configuración necesarios para la estructura del servidor
 	server.sin_family = AF_INET;
-	server.sin_port = htons(3535);
+	server.sin_port = htons(PORT);
 	server.sin_addr.s_addr = INADDR_ANY;
 	bzero(server.sin_zero,8);
-	tama = sizeof(struct sockaddr_in);
-	r = bind(servfd, (struct sockaddr *)&server, tama);
+	
+	
+
+	//Esta función se encarga de ligar al socket servfd con el puerto que utilizaremos para la transmisión , aqui &server es un apuntador a esa estructura que contiene los parametros relacionados con el numero de puerto y la dirección ip
+	r = bind(servfd, (struct sockaddr *)&server, sizeof(struct sockaddr_in));
 	if(r == -1){
 		perror("Error en bind");
 		exit(-1);
@@ -210,12 +218,12 @@ int main(){
 		switch(msgInd){
 			case 1:
 
-				r = -1;
-				while(r<=0){
-					r=recv(clientfd,&mascota,STRUCTSIZE,0);
-					printf("r es igual a: %i\n", r);				
+				
+				//while(r1<=0){
+					r1=recv(clientfd,&mascota,STRUCTSIZE,0);
+					printf("r es igual a: %i\n", r1);				
 
-				}
+				//}
 				//validar
 				if(r==-1){
 					perror("Error en recv de ingresar datos\n");

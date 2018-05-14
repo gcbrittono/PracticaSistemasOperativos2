@@ -16,6 +16,7 @@
 #define PORT 3535
 #define MSGSIZE 32
 #define STRUCTSIZE sizeof(struct DogType)
+
 struct DogType *mascota;
 	
 struct DogType {
@@ -116,7 +117,7 @@ void getData(){
 		
 }
 
-int main(){
+int main(int argc, char *argv[]){
 
 	char trash[32];
 	int clientfd,r;
@@ -127,22 +128,33 @@ int main(){
 	
 	struct sockaddr_in client;
 	socklen_t tama=sizeof(struct sockaddr);
+
+	//se define elsocket que utilizara el cliente
 	clientfd = socket(AF_INET,SOCK_STREAM,0);
 	//validar
 	if(clientfd==-1){
 		perror("Error en socket del clientfd\n");
 		exit(-1);
-	}	
+	}
+
+	//se inicializan las variables de la estructura de destino	
 	client.sin_family= AF_INET;
 	client.sin_port = htons(PORT);
-	client.sin_addr.s_addr= inet_addr("127.0.0.1");
-	bzero(client.sin_zero,8);
+//	client.sin_addr.s_addr= inet_addr("127.0.0.1");
+//	bzero(client.sin_zero,8);
+
+
+	inet_pton(AF_INET, "127.0.0.1", &client.sin_addr);	
+
+	//Conexión con el cliente
 	r=connect(clientfd,(struct sockaddr*)&client, tama);
 	//validar
 	if(r==-1){
 		perror("Error en connect de r\n");
 		exit(-1);
 	}
+
+
 	r=recv(clientfd,msg,MSGSIZE,0);
 	//validar
 	printf("%s\n",msg);
