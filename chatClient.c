@@ -73,12 +73,19 @@ int main(){
 
 	while(true){
 		printf("Su mensaje es:");
-		scanf("%s",msg);	
+		scanf("%s",msg);
+
+		r = recv(clientfd, msg, MSGSIZE,0);
+		puts(msg);	
 
 		r = send(clientfd, msg, MSGSIZE,0);
 		if(r == -1){
 			perror("Error en send");
 			exit(-1);
+		}
+
+		if(msg[0] == '*'){
+			break;
 		}
 	}
 
