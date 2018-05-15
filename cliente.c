@@ -12,6 +12,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <arpa/inet.h>
+#include <errno.h>
+
 
 #define PORT 3535
 #define MSGSIZE 32

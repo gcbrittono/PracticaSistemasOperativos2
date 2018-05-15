@@ -11,6 +11,16 @@
 #include <string.h>
 #include <ctype.h>
 #include <arpa/inet.h>
+#include <errno.h>
+
+ #include <sys/select.h>
+
+       /* According to earlier standards */
+       #include <sys/time.h>
+      
+       #include <unistd.h>
+
+
 
 #define PORT 3535
 #define HASH_SIZE 1000
@@ -149,7 +159,7 @@ int main(int argc, char const *argv[]){
 
 	socklen_t tama;
 	struct sockaddr_in server, client;
-	int servfd, clientfd, r,r1; 
+	int servfd, clientfd, r; 
 	char msg[32];
 	int msgInd;
 	int msgInd_int;
@@ -214,14 +224,39 @@ int main(int argc, char const *argv[]){
 			exit(-1);
 		}
 
+fd_set readfds;
+struct timeval tv;
+FD_ZERO(&readfds);
+
+FD_SET(clientfd, &readfds);
+tv.tv_sec = 10;
+tv.tv_usec = 500000;
+
+
+
 		
 		switch(msgInd){
 			case 1:
+printf("aqui");
+	r = select(clientfd, &readfds, NULL,NULL,&tv);
+printf("%i valor de select: ", r);
+if (r == -1) {
+    perror("select"); // error occurred in select()
+} else if (r == 0) {
+    printf("Timeout occurred!  No data after 10.5 seconds.\n");
+} else {
+    // one or both of the descriptors have data
+    if (FD_ISSET(clientfd, &readfds)) {
+        r=recv(clientfd,&msgInd_int,MSGSIZE,0);
+    }
+    
+    }
+
 
 				
-				//while(r1<=0){
-					r1=recv(clientfd,&mascota,STRUCTSIZE,0);
-					printf("r es igual a: %i\n", r1);				
+				//while(r<=0){
+				//	r=recv(clientfd,&mascota,STRUCTSIZE,0);
+				//	printf("r es igual a: %i\n", r1);				
 
 				//}
 				//validar
