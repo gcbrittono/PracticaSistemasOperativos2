@@ -11,11 +11,15 @@
 #include <string.h>
 #include <ctype.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+
 
 #define HASH_SIZE 1000
 #define BACKLOG 8
 #define MSGSIZE 32
 #define STRUCTSIZE sizeof(struct DogType)
+#define NUMTHREADS 8
+
 
 /*struct sockaddr_in{
 	short sin_family;
@@ -28,8 +32,42 @@ struct in_addr{
 };
 */
 
+
+//Funcion para cada uno de los hilos para el control de las conexiones con los clientes
+void *function(void *thread_id){
+//intercambio de información entre cliente y serviidor
+
+
+	int r; 
+	int clientfd; 
+	char *msg;
+	r=recv(clientfd,msg,MSGSIZE,0);
+	if(r<0){
+		perror("Error en recv de r inicio de conexión\n");
+		exit(-1);
+	}
+	printf("Inicio hilo \n %i", *(int *)thread_id);
+	sleep(1);	
+	printf("%s\n",msg);
+	while(true){
+		r=recv(clientfd,msg,MSGSIZE,0);
+		if(r==-1){
+			perror("Error en recv de r\n");
+			exit(-1);
+		}
+		printf("%s\n",msg);
+	}
+	
+	printf("Fin hilo \n %i", *(int *)thread_id);
+}
+
+
+
 int main(){
 	
+	//creacion de hilos relacionados con el numero de clientes
+	pthread_t hilo[NUMTHREADS];
+	int i,data[NUMTHREADS];
 
 	socklen_t tama;
 	struct sockaddr_in server, client;
@@ -46,11 +84,13 @@ int main(){
 		exit(-1);
 	}
 
+	puts("Creacion del socket");
+
 //-----------------------------------------------------------------------------------------------------------------------------------------
 // configuracion para poder utilizar el sockect repetidas veces
 //-----------------------------------------------------------------------------------------------------------------------------------------
 	
-	if (setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0){
+	if ((setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int))) < 0){
     		perror("setsockopt(SO_REUSEADDR) failed");
 	}
 	server.sin_family = AF_INET;
@@ -69,7 +109,7 @@ int main(){
 		perror("Error en bind");
 		exit(-1);
 	}
-
+	puts("Bind del socket creado");
 //-----------------------------------------------------------------------------------------------------------------------------------------
 // El socket entra en modo escucha hasta aceptar la conexion
 //-----------------------------------------------------------------------------------------------------------------------------------------
@@ -79,26 +119,37 @@ int main(){
 		perror("Error en listen");
 		exit(-1);
 	}
-
+	puts("Esperando conexion...");
 //-----------------------------------------------------------------------------------------------------------------------------------------
 // Se conectan el cliente y el servidor
 //-----------------------------------------------------------------------------------------------------------------------------------------
 
 
-	clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
-	if(clientfd == -1){
-		perror("Error en accept");
-		exit(-1);
+	while(true){
+		clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
+		if(clientfd == -1){
+			perror("Error en accept");
+			exit(-1);
+		}
+		puts("Conexión aceptada");
+		
+
+		for ( i = 0 ; i < NUMTHREADS ; i ++){
+			data[i] = i;
+			if(pthread_create(&hilo[i], NULL , function , (void*) &data[i])<0){
+				perror("Error al crear los hilos");
+				exit(-1);
+			}
+
+		}
 	}
-
-
 
 //-----------------------------------------------------------------------------------------------------------------------------------------
 // Envio de informacion
 //-----------------------------------------------------------------------------------------------------------------------------------------
 
 
-
+/*
 	r=recv(clientfd,msg,MSGSIZE,0);
 	if(r==-1){
 		perror("Error en recv de r\n");
@@ -116,9 +167,9 @@ int main(){
 		}
 		printf("%s\n",msg);
 	}
-
-	close(clientfd);
-	close(servfd);
+*/
+	//close(clientfd);
+	//close(servfd);
 
 	return 0;
 }
