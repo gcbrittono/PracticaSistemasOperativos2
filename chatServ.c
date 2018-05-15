@@ -29,6 +29,91 @@ struct in_addr{
 };
 */
 
+
+
+//Definimos constantes para cuadrar el numero de clientes/hilos que se utilizaran al tiempo
+#define NUM_CLIENTES 5 
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+//  Definición de la función de los hilos	
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+void *connection_handler(void *sock_id){
+	//adquiere el identificador para el socket	
+	int clientfd = (intptr_t)sock_id;
+	int r;
+	char msg[32];
+
+	//Esta estructura gurada la información concerniente al servidor con el cual el cliente quiere conectarse
+	struct sockaddr_in serv_addr;
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+//  Creacion del socket() clientfd	
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+	clientfd = socket(AF_INET,SOCK_STREAM,0);
+	//validar
+	if(clientfd==-1){
+		perror("Error en socket del clientfd\n");
+		exit(-1);
+	}	
+	serv_addr.sin_family= AF_INET;
+	serv_addr.sin_port = htons(PORT);
+	serv_addr.sin_addr.s_addr= inet_addr("127.0.0.1");
+	bzero(serv_addr.sin_zero,8);
+
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// Se conectan el cliente y el servidor
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+
+	r=connect(clientfd,(struct sockaddr*)&serv_addr, sizeof(serv_addr));
+	//validar
+	if(r<0){
+		perror("Error en connect de r\n");
+		exit(-1);
+	}
+
+
+	printf("Conexión exitosa cliente número:%d\n ", threadnum);
+	while(1){
+		printf("Conexion con el cliente: %d\n", threadnum);
+		printf("Escribir mensaje");
+		scanf("%s",msg);	
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// Envio de informacion
+//-----------------------------------------------------------------------------------------------------------------------------------------
+		r = send(clientfd, msg, MSGSIZE,0);
+		if(r == -1){
+			perror("Error en send");
+			exit(-1);	
+		}
+	
+	sleep(2);
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 int main(){
 	
 
