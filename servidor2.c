@@ -13,20 +13,134 @@
 #include <arpa/inet.h>
 
 #define BACKLOG 8
+struct DogType {
+        char nombre[32];
+        char tipo[32];
+        int edad;
+        char raza[16];
+        int estatura;
+        double peso;
+        char   sexo;
+};
+void printDogType(struct DogType *mascota){
+	printf("\nNombre: \t%s\n", mascota->nombre);
+	printf("Tipo: \t\t%s\n", mascota->tipo);
+	printf("Edad: \t\t%i\n", mascota->edad);
+	printf("Raza: \t\t%s\n", mascota->raza);
+	printf("Estatura: \t%i\n", mascota->estatura);
+	printf("Peso: \t\t%.2lf\n", mascota->peso);
+	printf("Sexo: \t\t%c\n\n", mascota->sexo);
+}
 
-void sendStr(char * str, int clientfd){
+void getData(int clientfd){
+	struct DogType *mascota;
+	mascota = malloc(sizeof(struct DogType));
 	int r;
-	r = send(clientfd, str, 128,0);
+	char input[128];
+
+	r = send(clientfd,"Ingrese el nombre de su mascota:",128,0);
 	if(r == -1){
 		perror("Error en send");
 		exit(-1);
 	}
-	
-}
+	r=recv(clientfd, input, 128, 0);	
+	if(r==-1){
+		perror("Error en recv\n");
+		exit(-1);
+	}
+	printf("Recibido:%s\n", input);
 
-void recvStr(int clientfd, char* str){
-	int r;
+	snprintf(mascota->nombre,32,"%s",input);
+
+	r = send(clientfd,"Ingrese el tipo de mascota:",128,0);
+	if(r == -1){
+		perror("Error en send");
+		exit(-1);
+	}
+	r=recv(clientfd, input, 128, 0);
+	if(r==-1){
+		perror("Error en recv\n");
+		exit(-1);
+	}
+	printf("Recibido:%s\n", input);
+
+	snprintf(mascota->tipo,32,"%s",input);
+
+	r = send(clientfd,"Ingrese la edad de su mascota:",128,0);
+	if(r == -1){
+		perror("Error en send");
+		exit(-1);
+	}
+	r=recv(clientfd, input, 128, 0);
+	if(r==-1){
+		perror("Error en recv\n");
+		exit(-1);
+	}
+	printf("Recibido:%s\n", input);
 	
+	mascota->edad = atoi(input);
+
+	r = send(clientfd,"Ingrese la raza de su mascota:",128,0);
+	if(r == -1){
+		perror("Error en send");
+		exit(-1);
+	}
+	r=recv(clientfd, input, 128, 0);
+	if(r==-1){
+		perror("Error en recv\n");
+		exit(-1);
+	}
+	printf("Recibido:%s\n", input);
+	
+	snprintf(mascota->raza,32,"%s",input);
+	
+	r = send(clientfd,"Ingrese la estatura de su mascota:",128,0);
+	if(r == -1){
+		perror("Error en send");
+		exit(-1);
+	}
+	r=recv(clientfd, input, 128, 0);
+	if(r==-1){
+		perror("Error en recv\n");
+		exit(-1);
+	}
+	printf("Recibido:%s\n", input);
+
+	mascota->estatura = atoi(input);
+
+	r = send(clientfd,"Ingrese el peso de su mascota:",128,0);
+	if(r == -1){
+		perror("Error en send");
+		exit(-1);
+	}
+	r=recv(clientfd, input, 128, 0);
+	if(r==-1){
+		perror("Error en recv\n");
+		exit(-1);
+	}
+	printf("Recibido:%s\n", input);
+
+	sscanf(input, "%lf", &mascota->peso);
+	
+
+	r = send(clientfd,"Ingrese el sexo de su mascota:",128,0);
+	if(r == -1){
+		perror("Error en send");
+		exit(-1);
+	}
+	r=recv(clientfd, input, 128, 0);
+	if(r==-1){
+		perror("Error en recv\n");
+		exit(-1);
+	}
+	printf("Recibido:%s\n", input);
+	
+	mascota->sexo = input[0];
+
+	printDogType(mascota);
+
+	
+
 }
 
 int main(){
@@ -76,7 +190,7 @@ int main(){
 	bool flag = true;
 	while(flag){
 		
-		r = send(clientfd,"Menuº: \n 1. Ingresar registro \n 2. Ver registro \n 3. Borrar registro \n 4. Buscar registro \n 5. Salir \n", 128,0);
+		r = send(clientfd,"Menuº: \n 1. Ingresar registro \n 2. Ver registro \n 3. Borrar registro \n 4. Buscar registro \n 5. Salir", 128,0);
 		if(r == -1){
 			perror("Error en send");
 			exit(-1);
@@ -90,40 +204,10 @@ int main(){
 		menu=atoi(input);	
 		switch (menu){
 			case 1:
-				r = send(clientfd,"Ingrese el nombre de su mascota:",128,0);
-				if(r == -1){
-					perror("Error en send");
-					exit(-1);
-				}
-				r=recv(clientfd, input, 128, 0);
-				if(r==-1){
-					perror("Error en recv\n");
-					exit(-1);
-				}
-				printf("Recibido:%s\n", input);
-				r = send(clientfd,"Ingrese el tipo de mascota:",128,0);
-				if(r == -1){
-					perror("Error en send");
-					exit(-1);
-				}
-				r=recv(clientfd, input, 128, 0);
-				if(r==-1){
-					perror("Error en recv\n");
-					exit(-1);
-				}
-				printf("Recibido:%s\n", input);
-				r = send(clientfd,"Ingrese la edad de su mascota:",128,0);
-				if(r == -1){
-					perror("Error en send");
-					exit(-1);
-				}
-				r=recv(clientfd, input, 128, 0);
-				if(r==-1){
-					perror("Error en recv\n");
-					exit(-1);
-				}
-				printf("Recibido:%s\n", input);
-			
+				getData(clientfd);				
+				break;
+			case 5:
+				flag = false;				
 				break;
 			default:
 				
