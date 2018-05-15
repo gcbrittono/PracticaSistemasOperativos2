@@ -58,6 +58,9 @@ int main(){
 			perror("Error en send");
 			exit(-1);
 		}
+		if(strcmp(msg,"5")==0){
+			flag=false;
+		}
 	}
 	
 	close(clientfd);
