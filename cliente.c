@@ -166,8 +166,8 @@ int main(int argc, char *argv[]){
 	while(flag){
 		printf("Menuº: \n 1. Ingresar registro \n 2. Ver registro \n 3. Borrar registro \n 4. Buscar registro \n 5. Salir \n");
 		scanf("%i", &menu);
-		menu_int = htonl(menu);
-		r = send(clientfd, (const char*)&menu_int, MSGSIZE,0);
+		//menu_int = htonl(menu);
+		r = send(clientfd, (int *)&menu, sizeof(int),0);
 
 
 		if(r == -1){
