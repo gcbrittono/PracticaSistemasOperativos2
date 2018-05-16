@@ -44,11 +44,11 @@ void *function(void *sock_id){
 	char *message, client_message[2000];
 
 	message = "Prueba para ver si existe conexión exitosa";
-	write(sock, message, strlen(message));
+	send(sock, message, strlen(message),0);
 //	send(sock, message, strlen(message),0);
 
 	while((read_size = recv(sock, client_message,2000,0))>0){
-		write(sock, client_message, strlen(client_message));
+		send(sock, client_message, strlen(client_message),0);
 		if(client_message[0] == '*'){
 			break;
 		}		

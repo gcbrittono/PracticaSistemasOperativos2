@@ -75,8 +75,8 @@ int main(){
 		printf("Su mensaje es:");
 		scanf("%s",msg);
 
-		r = recv(clientfd, msg, MSGSIZE,0);
-		puts(msg);	
+	//	r = recv(clientfd, msg, MSGSIZE,0);
+	//	puts(msg);	
 
 		r = send(clientfd, msg, MSGSIZE,0);
 		if(r == -1){

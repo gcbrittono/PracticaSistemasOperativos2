@@ -24,7 +24,7 @@
 #define NUMTHREADS 8
 
 
-int cantidadDeRegistros = -1;
+
 
 /*struct sockaddr_in{
 	short sin_family;
@@ -38,34 +38,7 @@ struct in_addr{
 */
 
 int cantidad_clientes;
-
-//Funcion para cada uno de los hilos para el control de las conexiones con los clientes
-void *function(void *sock_id){
-//intercambio de información entre cliente y serviidor
-	
-	//Extrae información del descriptor del socket
-	int sock = *(int*)sock_id;
-	int read_size;
-	char *message, client_message[2000];
-
-	message = "Prueba para ver si existe conexión exitosa";
-	write(sock, message, strlen(message));
-//	send(sock, message, strlen(message),0);
-
-	while((read_size = recv(sock, client_message,2000,0))>0){
-		write(sock, client_message, strlen(client_message));
-		if(client_message[0] == '*'){
-			break;
-		}		
-		puts(client_message);
-
-	}
-	close(sock);
-	cantidad_clientes--;
-	
-}
-
-
+int cantidadDeRegistros = -1;
 
 struct DogType *mascota;
 
@@ -79,88 +52,16 @@ struct DogType {
         char   sexo;
 };
 
-int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
-	int hash, i;
-	int len = strlen(str);
-	
-    for(hash = i = 0; i < len; ++i)
-    {
-        hash += str[i];
-        hash += (hash << 10);
-        hash ^= (hash >> 6);
-    }
-    
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
-    return (int)fabs(hash % HASH_SIZE);
-}
-
-void printDogType(){
-	printf("\nNombre: \t%s\n", mascota->nombre);
-	printf("Tipo: \t\t%s\n", mascota->tipo);
-	printf("Edad: \t\t%i\n", mascota->edad);
-	printf("Raza: \t\t%s\n", mascota->raza);
-	printf("Estatura: \t%i\n", mascota->estatura);
-	printf("Peso: \t\t%.2lf\n", mascota->peso);
-	printf("Sexo: \t\t%c\n\n", mascota->sexo);
-}
-int regCant(){
-	FILE *file;
-	file = fopen("dataDogs.dat", "r");
-	if (file==NULL){
-		return 0;
-	}else{
-		
-		int size=0;
-
-		fseek(file, 0, SEEK_END); // seek to end of file
-		size = ftell(file); // get current file pointer
-		fseek(file, 0, SEEK_SET);
-	
-		fclose(file);
-		return(size/104);
-	}
-}
-void leer(int a){
-	FILE *file;
-	file = fopen("dataDogs.dat", "r");
-
-	fseek(file, (a-1)*104, SEEK_SET);
-
-	fread(mascota, sizeof(struct DogType),1,file);
-
-	printDogType(mascota);
-
-	fclose(file);
-};
-void removeFromFile(int index){
-	FILE *file;
-	FILE *temp;
-	temp = fopen("temp.dat","w+");
-	file = fopen("dataDogs.dat","r");
-		
-	struct DogType *mascota;
-	mascota = malloc(sizeof(struct DogType));
-	
-	for(int i = 1; i<=cantidadDeRegistros; i++){
-		fread(mascota, sizeof(struct DogType),1,file);		
-		if(i!=index){
-			fwrite(mascota, sizeof(struct DogType),1, temp);
-		}
-	}
-
-	free(mascota);
-	fclose(file);
-	fclose(temp);
-	system("rm dataDogs.dat");
-	system("mv temp.dat dataDogs.dat");
-
-}
+void *function(void *sock_id);
+int funHash(char* str); // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
+void printDogType();
+int regCant();
+void leer(int a);
+void removeFromFile(int index);
 
 
 int main(int argc, char const *argv[]){
-	
+	pthread_t hilo;
 	mascota = malloc(sizeof(struct DogType));
 
 	char trash[32];
@@ -222,18 +123,47 @@ int main(int argc, char const *argv[]){
 // Se conectan el cliente y el servidor
 //-----------------------------------------------------------------------------------------------------------------------------------------
 
-
-	clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
-	if(clientfd == -1){
-		perror("Error en accept");
-		exit(-1);
+	while(true){
+		clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
+		cantidad_clientes++;
+		if(clientfd == -1){
+			perror("Error en accept");
+			exit(-1);
+		}
+		printf("Conexión del cliente :%i\n ",cantidad_clientes);
+		if(pthread_create(&hilo, NULL , function , (void*) &clientfd)<0){
+				perror("Error al crear los hilos");
+				exit(-1);
+			}
 	}
+	
+return 0;
+}
+
+
+
+//Funcion para cada uno de los hilos para el control de las conexiones con los clientes
+void *function(void *sock_id){
+
+	
+	
+	mascota = malloc(sizeof(struct DogType));
+
+	char trash[32];
+	cantidadDeRegistros=regCant();
+	socklen_t tama;
+	struct sockaddr_in server, client;
+	int servfd, clientfd, r; 
+
+	clientfd =  *(int*)sock_id;
 
 	r = send(clientfd, "Conexion Exitosa", MSGSIZE,0);
 	if(r == -1){
 		perror("Error en send");
 		exit(-1);
 	}	
+	
+	puts("Conexión exitosa");	
 	
 	//validar
 	bool flag = true;
@@ -332,7 +262,86 @@ int main(int argc, char const *argv[]){
 	close(servfd);
 	
 	free(mascota);	
-
 	
-return 0;
 }
+
+int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
+	int hash, i;
+	int len = strlen(str);
+	
+    for(hash = i = 0; i < len; ++i)
+    {
+        hash += str[i];
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
+    }
+    
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+    return (int)fabs(hash % HASH_SIZE);
+}
+
+void printDogType(){
+	printf("\nNombre: \t%s\n", mascota->nombre);
+	printf("Tipo: \t\t%s\n", mascota->tipo);
+	printf("Edad: \t\t%i\n", mascota->edad);
+	printf("Raza: \t\t%s\n", mascota->raza);
+	printf("Estatura: \t%i\n", mascota->estatura);
+	printf("Peso: \t\t%.2lf\n", mascota->peso);
+	printf("Sexo: \t\t%c\n\n", mascota->sexo);
+}
+int regCant(){
+	FILE *file;
+	file = fopen("dataDogs.dat", "r");
+	if (file==NULL){
+		return 0;
+	}else{
+		
+		int size=0;
+
+		fseek(file, 0, SEEK_END); // seek to end of file
+		size = ftell(file); // get current file pointer
+		fseek(file, 0, SEEK_SET);
+	
+		fclose(file);
+		return(size/104);
+	}
+}
+void leer(int a){
+	FILE *file;
+	file = fopen("dataDogs.dat", "r");
+
+	fseek(file, (a-1)*104, SEEK_SET);
+
+	fread(mascota, sizeof(struct DogType),1,file);
+
+	printDogType(mascota);
+
+	fclose(file);
+};
+void removeFromFile(int index){
+	FILE *file;
+	FILE *temp;
+	temp = fopen("temp.dat","w+");
+	file = fopen("dataDogs.dat","r");
+		
+	struct DogType *mascota;
+	mascota = malloc(sizeof(struct DogType));
+	
+	for(int i = 1; i<=cantidadDeRegistros; i++){
+		fread(mascota, sizeof(struct DogType),1,file);		
+		if(i!=index){
+			fwrite(mascota, sizeof(struct DogType),1, temp);
+		}
+	}
+
+	free(mascota);
+	fclose(file);
+	fclose(temp);
+	system("rm dataDogs.dat");
+	system("mv temp.dat dataDogs.dat");
+
+}
+
+
