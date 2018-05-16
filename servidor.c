@@ -13,12 +13,16 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <sys/select.h>
+#include <pthread.h>
+
 
 #define PORT 3535
 #define HASH_SIZE 1000
 #define BACKLOG 8
 #define MSGSIZE 32
 #define STRUCTSIZE sizeof(struct DogType)
+#define NUMTHREADS 8
+
 
 int cantidadDeRegistros = -1;
 
@@ -32,6 +36,37 @@ struct in_addr{
 	unsigned long s_addr;
 };
 */
+
+int cantidad_clientes;
+
+//Funcion para cada uno de los hilos para el control de las conexiones con los clientes
+void *function(void *sock_id){
+//intercambio de información entre cliente y serviidor
+	
+	//Extrae información del descriptor del socket
+	int sock = *(int*)sock_id;
+	int read_size;
+	char *message, client_message[2000];
+
+	message = "Prueba para ver si existe conexión exitosa";
+	write(sock, message, strlen(message));
+//	send(sock, message, strlen(message),0);
+
+	while((read_size = recv(sock, client_message,2000,0))>0){
+		write(sock, client_message, strlen(client_message));
+		if(client_message[0] == '*'){
+			break;
+		}		
+		puts(client_message);
+
+	}
+	close(sock);
+	cantidad_clientes--;
+	
+}
+
+
+
 struct DogType *mascota;
 
 struct DogType {
@@ -133,9 +168,9 @@ int main(int argc, char const *argv[]){
 	socklen_t tama;
 	struct sockaddr_in server, client;
 	int servfd, clientfd, r; 
-
-	
-	
+//-----------------------------------------------------------------------------------------------------------------------------------------
+//  Creacion del socket() servfd	
+//-----------------------------------------------------------------------------------------------------------------------------------------	
 	//Creación del descriptor del socket para el servidor
 	//Opciones son IPv4, TCP, 0 par IP 
 	servfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -143,6 +178,10 @@ int main(int argc, char const *argv[]){
 		perror("Error en socket");
 		exit(-1);
 	}
+	puts("Creacion del socket");
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// configuracion para poder utilizar el sockect repetidas veces
+//-----------------------------------------------------------------------------------------------------------------------------------------
 
 	// configuracion para poder utilizar el sockect repetidas veces y dar configuraciones al puerto
 	if (setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &(int){ 1 }, sizeof(int)) < 0){
@@ -156,6 +195,9 @@ int main(int argc, char const *argv[]){
 	bzero(server.sin_zero,8);
 	
 	
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// creacion bind
+//-----------------------------------------------------------------------------------------------------------------------------------------
 
 	//Esta función se encarga de ligar al socket servfd con el puerto que utilizaremos para la transmisión , aqui &server es un apuntador a esa estructura que contiene los parametros relacionados con el numero de puerto y la dirección ip
 	r = bind(servfd, (struct sockaddr *)&server, sizeof(struct sockaddr_in));
@@ -163,12 +205,23 @@ int main(int argc, char const *argv[]){
 		perror("Error en bind");
 		exit(-1);
 	}
-	//validar
+	puts("Bind del socket creado");
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// El socket entra en modo escucha hasta aceptar la conexion
+//-----------------------------------------------------------------------------------------------------------------------------------------
+	
 	r = listen(servfd, BACKLOG);
 	if(r == -1){
 		perror("Error en listen");
 		exit(-1);
 	}
+
+	puts("Esperando conexion...");
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// Se conectan el cliente y el servidor
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
 
 	clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
 	if(clientfd == -1){
