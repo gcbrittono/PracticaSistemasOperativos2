@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <sys/select.h>
 #include <pthread.h>
+#include <time.h>
 
 
 #define PORT 3535
@@ -21,7 +22,7 @@
 #define BACKLOG 8
 #define MSGSIZE 32
 #define STRUCTSIZE sizeof(struct DogType)
-#define MAXCLIENTS 32
+#define MAXCLIENTS 4
 
 
 
@@ -33,7 +34,7 @@
 	char sin_zero[8] ;
 };
 struct in_addr{
-	unsigned long s_addr;
+	unsigned long sind_addr.s_addr;
 };
 */
 
@@ -150,7 +151,61 @@ int val = 5;
 	return 0;
 }
 
+//[Fecha YYYYMMDDTHHMMSS] Cliente [IP] [inserción | lectura | borrado | búsqueda] [registro
+//| cadena buscada ]
+void log_send(char*cliente, char*funcion, char*busqueda){
+	FILE *file;
+	file = fopen("serverDogs.log","a+");
+	char temp[20];
+	
+	time_t t = time(NULL);
+	char logm [200] = "Fecha ";
 
+
+	struct tm *tm = localtime(&t);
+	
+	sprintf(temp,"%d",(tm->tm_year)+1900);	
+	
+	strcat(logm, temp);
+	
+	sprintf(temp,"%.2d",(tm->tm_mon)+1);	
+
+	strcat(logm, temp);
+
+	sprintf(temp,"%.2d",tm->tm_mday);	
+
+	strcat(logm, temp);
+
+	sprintf(temp,"%.2d",tm->tm_hour);	
+
+	strcat(logm, temp);
+	
+	sprintf(temp,"%.2d",tm->tm_min);
+		
+	strcat(logm, temp);
+
+	sprintf(temp,"%.2d",tm->tm_sec);	
+
+	strcat(logm, temp);
+	
+	strcat(logm, " Cliente ");
+	
+	strcat(logm, cliente);
+	
+	strcat(logm, " ");
+
+	strcat(logm, funcion);
+	
+	strcat(logm, " ");
+
+	strcat(logm, busqueda);
+
+	strcat(logm, "\n");
+	printf("%s",logm);
+
+	fwrite(logm,strlen(logm),1,file);
+	fclose(file);
+}
 
 //Funcion para cada uno de los hilos para el control de las conexiones con los clientes
 void *function(void *sock_id){
@@ -192,8 +247,10 @@ void *function(void *sock_id){
 		switch(menu){
 			case 1:
 
+
 				r=recv(clientfd,mascota,STRUCTSIZE,0);
-		
+				
+				log_send(inet_ntoa(client.sin_addr),"inserción",mascota->nombre);		
 				//validar
 				if(r==-1){
 					perror("Error en recv de ingresar datos...\n");
@@ -218,6 +275,7 @@ void *function(void *sock_id){
 					exit(-1);
 				}
 				r=recv(clientfd, &menu,sizeof(int),0);
+						
 				printf("%i\n",menu);
 				//validar
 				if(r==-1){
@@ -227,6 +285,8 @@ void *function(void *sock_id){
 				if(menu <= cantidadDeRegistros && menu>0){					
 					leer(menu);
 					r = send(clientfd, mascota, STRUCTSIZE,0);
+					sprintf(trash,"%d",menu);
+					log_send(inet_ntoa(client.sin_addr),"lectura",trash);
 					if(r == -1){
 						perror("Error en send");
 						exit(-1);
@@ -246,6 +306,8 @@ void *function(void *sock_id){
 				
 				if(menu <= cantidadDeRegistros && menu>0){
 		  			removeFromFile(menu);
+					sprintf(trash,"%d",menu);
+					log_send(inet_ntoa(client.sin_addr),"borrado",trash);
 				}else{
 					printf("El Numero de registro no es valido\n");
 				}
