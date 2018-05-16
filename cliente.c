@@ -19,6 +19,7 @@
 #define MSGSIZE 32
 #define STRUCTSIZE sizeof(struct DogType)
 
+int cantidadDeRegistros = 100;
 struct DogType *mascota;
 	
 struct DogType {
@@ -57,7 +58,7 @@ void getData(){
 	printf("Ingrese la edad de su mascota:");
 
 	while(true){	
-		scanf("%d", &edad);
+		scanf("%i", &edad);
 		if(edad<0){
 			printf("La edad debe ser mayor o igual que 0\n");
 		}else{
@@ -70,9 +71,9 @@ void getData(){
 	printf("Ingrese la estatura de su mascota:");
 
 	while(true){	
-		scanf("%d", &estatura);
+		scanf("%i", &estatura);
 		if(estatura<0){
-			printf("La estatura debe ser positiva\n");
+			printf("La estatura debe ser mayor o igual que 0\n");
 		}else{
 			break;
 		}
@@ -83,7 +84,7 @@ void getData(){
 	while(true){	
 		scanf("%lf", &peso);
 		if(peso<0){
-			printf("El peso debe ser positivo\n");
+			printf("El peso debe ser mayor o igual que 0\n");
 		}else{
 			break;
 		}
@@ -115,7 +116,7 @@ void getData(){
 	mascota->peso = peso;
 	mascota->sexo = sexo;
 
-	printDogType(mascota);
+	printDogType();
 		
 }
 
@@ -142,11 +143,8 @@ int main(int argc, char *argv[]){
 	//se inicializan las variables de la estructura de destino	
 	client.sin_family= AF_INET;
 	client.sin_port = htons(PORT);
-//	client.sin_addr.s_addr= inet_addr("127.0.0.1");
-//	bzero(client.sin_zero,8);
-
-
-	inet_pton(AF_INET, "127.0.0.1", &client.sin_addr);	
+	client.sin_addr.s_addr= inet_addr("127.0.0.1");
+	bzero(client.sin_zero,8);
 
 	//Conexión con el cliente
 	r=connect(clientfd,(struct sockaddr*)&client, tama);
@@ -155,7 +153,6 @@ int main(int argc, char *argv[]){
 		perror("Error en connect de r\n");
 		exit(-1);
 	}
-
 
 	r=recv(clientfd,msg,MSGSIZE,0);
 	//validar
@@ -168,8 +165,6 @@ int main(int argc, char *argv[]){
 		scanf("%i", &menu);
 		//menu_int = htonl(menu);
 		r = send(clientfd, (int *)&menu, sizeof(int),0);
-
-
 		if(r == -1){
 			perror("Error en send menu principal");
 			exit(-1);
@@ -184,34 +179,71 @@ int main(int argc, char *argv[]){
 					exit(-1);
 				}				
 				break;
-			/*case 2:
-
+			case 2:
+				r=recv(clientfd, &cantidadDeRegistros,sizeof(int),0);
+				if(r == -1){
+					perror("Error en recv case 2");
+					exit(-1);
+				}	
 				printf("El numero de registros es: %i\nIngrese el Numero de registro: ", cantidadDeRegistros);
-				scanf("%i",&registerToRead);
+				scanf("%i",&menu);
 
-				if(registerToRead <= cantidadDeRegistros && registerToRead>0){
-					read(registerToRead);
+				r = send(clientfd, (int *)&menu, sizeof(int),0);
+				if(r == -1){
+					perror("Error en send menu principal");
+					exit(-1);
+				}
+
+	
+				if(menu <= cantidadDeRegistros && menu>0){
+					
+
+					r=recv(clientfd,mascota,STRUCTSIZE,0);
+		
+					//validar
+					if(r==-1){
+						perror("Error en recv de case 2...\n");
+						exit(-1);
+					}
+
+					printDogType();
+
+					char nameFile[200]="";
+
+					char commandLine[100]="gedit ";
+
+					char n[64]={0};
+
+					strcat(nameFile,mascota->nombre);
+					strcat(nameFile,mascota->tipo);
+					strcat(nameFile,mascota->raza);
+					nameFile[strlen(nameFile)]=mascota->sexo;
+					sprintf(n, "%d", mascota->edad);
+					strcat(nameFile,n);
+					strcat(commandLine, nameFile);
+					system(commandLine);			
+					
 				}else{
 					printf("El Numero de registro no es valido\n");
 				}
 		  		break;
 		  	case 3:
 				printf("El numero de registros es: %i\nIngrese el Numero de registro: ", cantidadDeRegistros);
-				scanf("%i",&registerToRead);
-				if(registerToRead <= cantidadDeRegistros && registerToRead>0){
+				scanf("%i",&menu);
 
-		  			removeFromFile(registerToRead);
-					hashTable=readHashTable();
+				r = send(clientfd, (int *)&menu, sizeof(int),0);
+				if(r == -1){
+					perror("Error en send case 3");
+					exit(-1);
+				}				
 
-				}else{
-
+				if(menu > cantidadDeRegistros || menu<0){
 					printf("El Numero de registro no es valido\n");
-
 				}
 						  		
 		  		
 		  		break;
-		  	case 4:
+		  	/*case 4:
 		  		printf("Ingrese el nombre de la mascota: ");
 				scanf("%s",busqueda);
 				search(busqueda,hashTable);

@@ -12,15 +12,7 @@
 #include <ctype.h>
 #include <arpa/inet.h>
 #include <errno.h>
-
- #include <sys/select.h>
-
-       /* According to earlier standards */
-       #include <sys/time.h>
-      
-       #include <unistd.h>
-
-
+#include <sys/select.h>
 
 #define PORT 3535
 #define HASH_SIZE 1000
@@ -36,11 +28,11 @@ int cantidadDeRegistros = -1;
 	struct in_addr sind_addr;
 	char sin_zero[8] ;
 };
-
 struct in_addr{
 	unsigned long s_addr;
 };
 */
+struct DogType *mascota;
 
 struct DogType {
         char nombre[32];
@@ -50,13 +42,6 @@ struct DogType {
         int estatura;
         double peso;
         char   sexo;
-};
-
-struct ListNode{
-	struct ListNode *next;
-	struct ListNode *tail;
-	int data;
-	bool used;
 };
 
 int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
@@ -76,50 +61,7 @@ int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509
     return (int)fabs(hash % HASH_SIZE);
 }
 
-struct ListNode * getEmptyListNode(){
-	struct ListNode * salida = malloc(sizeof(struct ListNode));
-	salida->next = NULL;
-	salida->used = false;
-	salida->data = -1;
-	salida->tail = salida;
-	return salida;
-}
-
-struct ListNode * getHashTable(){
-	struct ListNode *hashTable;
-	hashTable = malloc(HASH_SIZE * sizeof(struct ListNode));
-	int j;
-	struct ListNode new;
-	for(j = 0; j < HASH_SIZE; j++){
-		new = *getEmptyListNode();
-		hashTable[j] = new;
-	}
-	return hashTable;
-}
-
-int setElementInHash(struct ListNode *hashAp, int data, char *nombre){
-	
-	int hashVal = funHash(nombre);
-
-	struct ListNode *actual = &hashAp[hashVal];
-
-	if(actual->used){
-		struct ListNode *last = actual->tail;
-		last->data = data;
-		last->used = true;
-		last->next = getEmptyListNode();
-		actual->tail = last->next;			
-	}else{
-		actual->data=data;
-		actual->used = true;
-		actual->next=getEmptyListNode();
-		actual->tail= actual->next;
-	}
-	
-	return hashVal;
-}
-
-void printDogType(struct DogType *mascota){
+void printDogType(){
 	printf("\nNombre: \t%s\n", mascota->nombre);
 	printf("Tipo: \t\t%s\n", mascota->tipo);
 	printf("Edad: \t\t%i\n", mascota->edad);
@@ -128,41 +70,70 @@ void printDogType(struct DogType *mascota){
 	printf("Peso: \t\t%.2lf\n", mascota->peso);
 	printf("Sexo: \t\t%c\n\n", mascota->sexo);
 }
-struct ListNode *readHashTable(){
-	struct ListNode * hashTable = getHashTable();
+int regCant(){
 	FILE *file;
 	file = fopen("dataDogs.dat", "r");
-	if(file != NULL){
-		struct DogType *mascota;
-    		mascota = malloc(sizeof(struct DogType));
-    		int i = 1;
-		while(fread(mascota, sizeof(struct DogType),1,file)){
-			setElementInHash(hashTable, i, mascota->nombre);
-			i++;
-		}
-		fclose(file);
-		free(mascota);
-		cantidadDeRegistros = i - 1;
+	if (file==NULL){
+		return 0;
 	}else{
-		cantidadDeRegistros = 0; 
-	}
-	return hashTable;
-}
-int main(int argc, char const *argv[]){
+		
+		int size=0;
+
+		fseek(file, 0, SEEK_END); // seek to end of file
+		size = ftell(file); // get current file pointer
+		fseek(file, 0, SEEK_SET);
 	
+		fclose(file);
+		return(size/104);
+	}
+}
+void leer(int a){
+	FILE *file;
+	file = fopen("dataDogs.dat", "r");
+
+	fseek(file, (a-1)*104, SEEK_SET);
+
+	fread(mascota, sizeof(struct DogType),1,file);
+
+	printDogType(mascota);
+
+	fclose(file);
+};
+void removeFromFile(int index){
+	FILE *file;
+	FILE *temp;
+	temp = fopen("temp.dat","w+");
+	file = fopen("dataDogs.dat","r");
+		
 	struct DogType *mascota;
 	mascota = malloc(sizeof(struct DogType));
-	struct ListNode *hashTable;	
-	hashTable = readHashTable();
+	
+	for(int i = 1; i<=cantidadDeRegistros; i++){
+		fread(mascota, sizeof(struct DogType),1,file);		
+		if(i!=index){
+			fwrite(mascota, sizeof(struct DogType),1, temp);
+		}
+	}
+
+	free(mascota);
+	fclose(file);
+	fclose(temp);
+	system("rm dataDogs.dat");
+	system("mv temp.dat dataDogs.dat");
+
+}
+
+
+int main(int argc, char const *argv[]){
+	
+	mascota = malloc(sizeof(struct DogType));
 
 	char trash[32];
-
+	cantidadDeRegistros=regCant();
 	socklen_t tama;
 	struct sockaddr_in server, client;
 	int servfd, clientfd, r; 
-	char msg[32];
-	int msgInd;
-	int msgInd_int;
+
 	
 	
 	//Creación del descriptor del socket para el servidor
@@ -217,41 +188,25 @@ int main(int argc, char const *argv[]){
 	while(flag){
 
 		r=recv(clientfd, &menu,sizeof(int),0);
-		//msgInd = ntohl(msgInd_int);
+
 		printf("%i\n",menu);
 		//validar
 		if(r==-1){
 			perror("Error en recv del menu\n");
 			exit(-1);
 		}
-
-//fd_set readfds;
-//struct timeval tv;
-//FD_ZERO(&readfds);
-
-//FD_SET(clientfd, &readfds);
-//tv.tv_sec = 10;
-//tv.tv_usec = 500000;
-
-
-
 		
 		switch(menu){
 			case 1:
 
-				
-				//while(r<=0){
-					r=recv(clientfd,mascota,STRUCTSIZE,0);
-				//	printf("r es igual a: %i\n", r1);				
-
-				//}
+				r=recv(clientfd,mascota,STRUCTSIZE,0);
+		
 				//validar
 				if(r==-1){
 					perror("Error en recv de ingresar datos...\n");
 					exit(-1);
 				}
 
-				setElementInHash(hashTable,cantidadDeRegistros+1,mascota->nombre);
 				printDogType(mascota);
 
 				FILE *file;
@@ -259,45 +214,52 @@ int main(int argc, char const *argv[]){
 				fwrite(mascota, sizeof(struct DogType),1, file);
 				fclose(file);
 				
-				cantidadDeRegistros++;
 				
-				r = send(clientfd, "Conexion Exitosa", MSGSIZE,0);
-				
-				if(r == -1){
-					perror("Error en send");
-					exit(-1);
-				}				
-
 				break;
-			/*
+			
 			case 2:
-
-				printf("El numero de registros es: %i\nIngrese el Numero de registro: ", cantidadDeRegistros);
-				scanf("%i",&registerToRead);
-
-				if(registerToRead <= cantidadDeRegistros && registerToRead>0){
-					read(registerToRead);
+				cantidadDeRegistros=regCant();
+				r = send(clientfd, (int *)&cantidadDeRegistros, sizeof(int),0);
+				if(r == -1){
+					perror("Error en send case 2");
+					exit(-1);
+				}
+				r=recv(clientfd, &menu,sizeof(int),0);
+				printf("%i\n",menu);
+				//validar
+				if(r==-1){
+					perror("Error en recv del case 2\n");
+					exit(-1);
+				}
+				if(menu <= cantidadDeRegistros && menu>0){					
+					leer(menu);
+					r = send(clientfd, mascota, STRUCTSIZE,0);
+					if(r == -1){
+						perror("Error en send");
+						exit(-1);
+					}
 				}else{
 					printf("El Numero de registro no es valido\n");
 				}
 		  		break;
 		  	case 3:
-				printf("El numero de registros es: %i\nIngrese el Numero de registro: ", cantidadDeRegistros);
-				scanf("%i",&registerToRead);
-				if(registerToRead <= cantidadDeRegistros && registerToRead>0){
-
-		  			removeFromFile(registerToRead);
-					hashTable=readHashTable();
-
+				r=recv(clientfd, &menu,sizeof(int),0);
+				printf("%i\n",menu);
+				//validar
+				if(r==-1){
+					perror("Error en recv del case 3\n");
+					exit(-1);
+				}
+				
+				if(menu <= cantidadDeRegistros && menu>0){
+		  			removeFromFile(menu);
 				}else{
-
 					printf("El Numero de registro no es valido\n");
-
 				}
 						  		
 		  		
 		  		break;
-		  	case 4:
+		  	/*case 4:
 		  		printf("Ingrese el nombre de la mascota: ");
 				scanf("%s",busqueda);
 				search(busqueda,hashTable);
@@ -310,10 +272,6 @@ int main(int argc, char const *argv[]){
 				printf("Opcion Incorrecta\n");
 				break;
 			}
-		if(flag){
-			printf("Presione cualquier tecla para volver al menu principal \n");
-			scanf("%s", trash);
-		}
 
 	}
 
