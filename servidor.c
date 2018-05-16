@@ -21,7 +21,7 @@
 #define BACKLOG 8
 #define MSGSIZE 32
 #define STRUCTSIZE sizeof(struct DogType)
-#define MAXCLIENTS 2
+#define MAXCLIENTS 32
 
 
 
