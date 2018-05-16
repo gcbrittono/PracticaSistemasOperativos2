@@ -21,7 +21,7 @@
 #define BACKLOG 8
 #define MSGSIZE 32
 #define STRUCTSIZE sizeof(struct DogType)
-#define NUMTHREADS 8
+#define MAXCLIENTS 2
 
 
 
@@ -52,12 +52,12 @@ struct DogType {
         char   sexo;
 };
 
-void *function(void *sock_id);
+void *function(void *sock_id); //Función que genera hilos para controlar clientes
 int funHash(char* str); // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
-void printDogType();
+void printDogType();//Funcion para mostrar en pantalla la estructura 
 int regCant();
-void leer(int a);
-void removeFromFile(int index);
+void leer(int a); //Funcion para ver la información dada en una estructura
+void removeFromFile(int index); //Funcion para eliminar una estructura especificada del arreglo
 
 
 int main(int argc, char const *argv[]){
@@ -69,6 +69,8 @@ int main(int argc, char const *argv[]){
 	socklen_t tama;
 	struct sockaddr_in server, client;
 	int servfd, clientfd, r; 
+
+	cantidad_clientes = 0;
 //-----------------------------------------------------------------------------------------------------------------------------------------
 //  Creacion del socket() servfd	
 //-----------------------------------------------------------------------------------------------------------------------------------------	
@@ -122,10 +124,17 @@ int main(int argc, char const *argv[]){
 //-----------------------------------------------------------------------------------------------------------------------------------------
 // Se conectan el cliente y el servidor
 //-----------------------------------------------------------------------------------------------------------------------------------------
-
+int val = 5;
 	while(true){
 		clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
 		cantidad_clientes++;
+		if(cantidad_clientes > MAXCLIENTS){
+			puts("Clientes máximos alcanzados");
+			send(clientfd, "Exit",MSGSIZE,0);
+			//send(clientfd,(int *)&val,sizeof(int),0);
+			//sleep(5);
+			
+		}
 		if(clientfd == -1){
 			perror("Error en accept");
 			exit(-1);
@@ -137,7 +146,8 @@ int main(int argc, char const *argv[]){
 			}
 	}
 	
-return 0;
+	free(mascota);
+	return 0;
 }
 
 
@@ -260,8 +270,9 @@ void *function(void *sock_id){
 
 	close(clientfd);
 	close(servfd);
+	cantidad_clientes--;
 	
-	free(mascota);	
+		
 	
 }
 

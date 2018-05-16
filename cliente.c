@@ -157,10 +157,16 @@ int main(int argc, char *argv[]){
 	r=recv(clientfd,msg,MSGSIZE,0);
 	//validar
 	printf("%s\n",msg);
-
-	bool flag=true;
 	
+	bool flag=true;
+	int val = 5;
 	while(flag){
+		if(strcmp(msg,"Exit") == 0){
+			puts("Numero de clientes maximos alcanzados, intente mas tarde");		
+			send(clientfd,&val,sizeof(int),0);
+			break;
+		}
+		
 		printf("Menuº: \n 1. Ingresar registro \n 2. Ver registro \n 3. Borrar registro \n 4. Buscar registro \n 5. Salir \n");
 		scanf("%i", &menu);
 		//menu_int = htonl(menu);
