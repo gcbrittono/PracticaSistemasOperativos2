@@ -37,12 +37,52 @@ struct in_addr{
 	unsigned long sind_addr.s_addr;
 };
 */
-
+int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
+	int hash, i;
+	int len = strlen(str);
+	
+    for(hash = i = 0; i < len; ++i)
+    {
+        hash += str[i];
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
+    }
+    
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+    return (int)fabs(hash % HASH_SIZE);
+}
 int cantidad_clientes;
 int cantidadDeRegistros = -1;
 
-struct DogType *mascota;
 
+struct ListNode{
+	struct ListNode *next;
+	struct ListNode *tail;
+	int data;
+	bool used;
+};
+struct ListNode * getEmptyListNode(){
+	struct ListNode * salida = malloc(sizeof(struct ListNode));
+	salida->next = NULL;
+	salida->used = false;
+	salida->data = -1;
+	salida->tail = salida;
+	return salida;
+}
+
+struct ListNode * getHashTable(){
+	struct ListNode *hashTable;
+	hashTable = malloc(HASH_SIZE * sizeof(struct ListNode));
+	int j;
+	struct ListNode new;
+	for(j = 0; j < HASH_SIZE; j++){
+		new = *getEmptyListNode();
+		hashTable[j] = new;
+	}
+	return hashTable;
+}
 struct DogType {
         char nombre[32];
         char tipo[32];
@@ -52,10 +92,50 @@ struct DogType {
         double peso;
         char   sexo;
 };
+int setElementInHash(struct ListNode *hashAp, int data, char *nombre){
+	
+	int hashVal = funHash(nombre);
+
+	struct ListNode *actual = &hashAp[hashVal];
+
+	if(actual->used){
+		struct ListNode *last = actual->tail;
+		last->data = data;
+		last->used = true;
+		last->next = getEmptyListNode();
+		actual->tail = last->next;			
+	}else{
+		actual->data=data;
+		actual->used = true;
+		actual->next=getEmptyListNode();
+		actual->tail= actual->next;
+	}
+	
+	return hashVal;
+}
+struct ListNode *readHashTable(struct ListNode *hashTable){ 
+	FILE *file;
+	file = fopen("dataDogs.dat", "r");
+	if(file != NULL){
+		struct DogType *mascota;
+    		mascota = malloc(sizeof(struct DogType));
+    		int i = 1;
+		while(fread(mascota, sizeof(struct DogType),1,file)){
+			setElementInHash(hashTable, i, mascota->nombre);
+			i++;
+		}
+		fclose(file);
+		free(mascota);
+		cantidadDeRegistros = i - 1;
+	}else{
+		cantidadDeRegistros = 0; 
+	}
+	return hashTable;
+}
 
 void *function(void *sock_id); //Función que genera hilos para controlar clientes
-int funHash(char* str); // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
-void printDogType();//Funcion para mostrar en pantalla la estructura 
+
+void printDogType(struct DogType *mascota);//Funcion para mostrar en pantalla la estructura 
 int regCant();
 void leer(int a); //Funcion para ver la información dada en una estructura
 void removeFromFile(int index); //Funcion para eliminar una estructura especificada del arreglo
@@ -63,7 +143,7 @@ void removeFromFile(int index); //Funcion para eliminar una estructura especific
 
 int main(int argc, char const *argv[]){
 	pthread_t hilo;
-	mascota = malloc(sizeof(struct DogType));
+
 
 	char trash[32];
 	cantidadDeRegistros=regCant();
@@ -147,7 +227,7 @@ int val = 5;
 			}
 	}
 	
-	free(mascota);
+
 	return 0;
 }
 
@@ -210,7 +290,7 @@ void log_send(char*cliente, char*funcion, char*busqueda){
 //Funcion para cada uno de los hilos para el control de las conexiones con los clientes
 void *function(void *sock_id){
 
-	
+	struct DogType *mascota;
 	
 	mascota = malloc(sizeof(struct DogType));
 
@@ -233,6 +313,9 @@ void *function(void *sock_id){
 	//validar
 	bool flag = true;
 	int menu;
+	struct ListNode *hashTable;
+	hashTable = getHashTable();
+	readHashTable(hashTable);
 	while(flag){
 
 		r=recv(clientfd, &menu,sizeof(int),0);
@@ -338,24 +421,8 @@ void *function(void *sock_id){
 	
 }
 
-int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
-	int hash, i;
-	int len = strlen(str);
-	
-    for(hash = i = 0; i < len; ++i)
-    {
-        hash += str[i];
-        hash += (hash << 10);
-        hash ^= (hash >> 6);
-    }
-    
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
-    return (int)fabs(hash % HASH_SIZE);
-}
 
-void printDogType(){
+void printDogType(struct DogType *mascota){
 	printf("\nNombre: \t%s\n", mascota->nombre);
 	printf("Tipo: \t\t%s\n", mascota->tipo);
 	printf("Edad: \t\t%i\n", mascota->edad);
@@ -384,13 +451,14 @@ int regCant(){
 void leer(int a){
 	FILE *file;
 	file = fopen("dataDogs.dat", "r");
-
+	struct DogType *mascota;
+	mascota = malloc(sizeof(struct DogType));
 	fseek(file, (a-1)*104, SEEK_SET);
 
 	fread(mascota, sizeof(struct DogType),1,file);
 
 	printDogType(mascota);
-
+	free(mascota);
 	fclose(file);
 };
 void removeFromFile(int index){
