@@ -21,7 +21,6 @@
 #define HASH_SIZE 1000
 #define BACKLOG 8
 #define MSGSIZE 32
-#define STRUCTSIZE sizeof(struct DogType)
 #define MAXCLIENTS 4
 
 
@@ -39,118 +38,299 @@ struct in_addr{
 */
 
 int cantidad_clientes;
-int cantidadDeRegistros = -1;
-
-struct DogType *mascota;
+int cantidadDeRegistros = 0;
 
 struct DogType {
-        char nombre[32];
-        char tipo[32];
-        int edad;
-        char raza[16];
-        int estatura;
-        double peso;
-        char   sexo;
+	char nombre[32];
+	char tipo[32];
+	int edad;
+	char raza[16];
+	int estatura;
+	double peso;
+	char sexo;
+	int last;
 };
 
-void *function(void *sock_id); //Función que genera hilos para controlar clientes
-int funHash(char* str); // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
-void printDogType();//Funcion para mostrar en pantalla la estructura 
-int regCant();
-void leer(int a); //Funcion para ver la información dada en una estructura
-void removeFromFile(int index); //Funcion para eliminar una estructura especificada del arreglo
+int structSize = sizeof(struct DogType);
 
-
-int main(int argc, char const *argv[]){
-	pthread_t hilo;
-	mascota = malloc(sizeof(struct DogType));
-
-	char trash[32];
-	cantidadDeRegistros=regCant();
-	socklen_t tama;
-	struct sockaddr_in server, client;
-	int servfd, clientfd, r; 
-
-	cantidad_clientes = 0;
-//-----------------------------------------------------------------------------------------------------------------------------------------
-//  Creacion del socket() servfd	
-//-----------------------------------------------------------------------------------------------------------------------------------------	
-	//Creación del descriptor del socket para el servidor
-	//Opciones son IPv4, TCP, 0 par IP 
-	servfd = socket(AF_INET, SOCK_STREAM, 0);
-	if(servfd == -1){
-		perror("Error en socket");
-		exit(-1);
+void toLowerStr(char *str){
+	int lenght = strlen(str);
+	int i;
+	for(i = 0; i < lenght; i++){
+		str[i] = tolower(str[i]);
 	}
-	puts("Creacion del socket");
-//-----------------------------------------------------------------------------------------------------------------------------------------
-// configuracion para poder utilizar el sockect repetidas veces
-//-----------------------------------------------------------------------------------------------------------------------------------------
-
-	// configuracion para poder utilizar el sockect repetidas veces y dar configuraciones al puerto
-	if (setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &(int){ 1 }, sizeof(int)) < 0){
-    		perror("setsockopt(SO_REUSEADDR) failed");
-	}
-
-	//Aqui se fijan los parametros de configuración necesarios para la estructura del servidor
-	server.sin_family = AF_INET;
-	server.sin_port = htons(PORT);
-	server.sin_addr.s_addr = INADDR_ANY;
-	bzero(server.sin_zero,8);
-	
-	
-//-----------------------------------------------------------------------------------------------------------------------------------------
-// creacion bind
-//-----------------------------------------------------------------------------------------------------------------------------------------
-
-	//Esta función se encarga de ligar al socket servfd con el puerto que utilizaremos para la transmisión , aqui &server es un apuntador a esa estructura que contiene los parametros relacionados con el numero de puerto y la dirección ip
-	r = bind(servfd, (struct sockaddr *)&server, sizeof(struct sockaddr_in));
-	if(r == -1){
-		perror("Error en bind");
-		exit(-1);
-	}
-	puts("Bind del socket creado");
-
-//-----------------------------------------------------------------------------------------------------------------------------------------
-// El socket entra en modo escucha hasta aceptar la conexion
-//-----------------------------------------------------------------------------------------------------------------------------------------
-	
-	r = listen(servfd, BACKLOG);
-	if(r == -1){
-		perror("Error en listen");
-		exit(-1);
-	}
-
-	puts("Esperando conexion...");
-//-----------------------------------------------------------------------------------------------------------------------------------------
-// Se conectan el cliente y el servidor
-//-----------------------------------------------------------------------------------------------------------------------------------------
-int val = 5;
-	while(true){
-		clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
-		cantidad_clientes++;
-		if(cantidad_clientes > MAXCLIENTS){
-			puts("Clientes máximos alcanzados");
-			send(clientfd, "Exit",MSGSIZE,0);
-			//send(clientfd,(int *)&val,sizeof(int),0);
-			//sleep(5);
-			
-		}
-		if(clientfd == -1){
-			perror("Error en accept");
-			exit(-1);
-		}
-		printf("Conexión del cliente :%i\n ",cantidad_clientes);
-		if(pthread_create(&hilo, NULL , function , (void*) &clientfd)<0){
-				perror("Error al crear los hilos");
-				exit(-1);
-			}
-	}
-	
-	free(mascota);
-	return 0;
 }
 
+int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
+	char new[32];
+	snprintf(new, 32, "%s", str);
+	toLowerStr(new);
+	
+	int hash, i;
+	int len = strlen(new);
+	
+	
+    for(hash = i = 0; i < len; ++i)
+    {
+        hash += new[i];
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
+    }
+    
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+    
+    return (int)fabs(hash % HASH_SIZE);
+}
+void insertar(int *hashTable, struct DogType *mascota, FILE *file ){
+	
+	int fun = funHash(mascota->nombre);
+	
+	mascota->last = hashTable[fun];
+	fwrite(mascota, structSize, 1, file);
+	
+	hashTable[fun] = cantidadDeRegistros;
+	cantidadDeRegistros++;
+}
+
+//Funcion para mostrar en pantalla la estructura 
+void printDogType(struct DogType *mascota,int pos){
+	printf("\nNombre: \t%s\n", mascota->nombre);
+	printf("Tipo: \t\t%s\n", mascota->tipo);
+	printf("Edad: \t\t%i\n", mascota->edad);
+	printf("Raza: \t\t%s\n", mascota->raza);
+	printf("Estatura: \t%i\n", mascota->estatura);
+	printf("Peso: \t\t%.2lf\n", mascota->peso);
+	printf("Sexo: \t\t%c\n", mascota->sexo);
+	printf("Last: \t\t%i\n", mascota->last + 1);
+	printf("Posicion: \t%i\n\n", pos);
+}
+
+void search(char* nombre, int *hashTable, int clientfd){
+	
+	int posicion = hashTable[funHash(nombre)];
+	FILE *file;
+	file = fopen("dataDogs.dat","r");
+	if(file == NULL){
+		return ;
+	}
+	struct DogType *mascota;
+	mascota = malloc(structSize);
+	char nombreS[32];
+	toLowerStr(nombre);
+	int r;
+	while(posicion != -1){	
+		fseek(file, posicion * structSize, SEEK_SET);		
+		fread(mascota, structSize, 1, file);
+		snprintf(nombreS, 32, "%s", mascota->nombre);
+		toLowerStr(nombreS);
+		
+		if(strcmp(nombreS,nombre)==0){
+			r = send(clientfd, mascota, structSize,0);
+			if(r == -1){
+				perror("Error en send search mascota");
+				exit(-1);
+			}
+			posicion++;
+			r = send(clientfd, (int *)&posicion, sizeof(int),0);
+			if(r == -1){
+				perror("Error en send search posicion ");
+				exit(-1);
+			}
+		}
+		posicion=mascota->last;			
+	}
+	snprintf(mascota->nombre, 32, "%s", "EstructuraFinal");
+	r = send(clientfd, mascota, structSize,0);
+	if(r == -1){
+		perror("Error en send search mascota");
+		exit(-1);
+	}
+	
+	fclose(file);
+	free(mascota);
+}
+//Funcion para eliminar una estructura especificada del arreglo
+void removeFromFile(int index){
+	
+	FILE *file;
+	FILE *temp;
+	temp = fopen("temp.dat","w+");
+	file = fopen("dataDogs.dat","r");
+	fseek(file, 0, SEEK_SET);
+	struct DogType *mascota;
+	mascota = malloc(structSize);
+	
+	for(int i = 1; fread(mascota, structSize,1,file); i++){				
+		if(i!=index){
+			fwrite(mascota, structSize,1, temp);
+		}
+	}
+
+	free(mascota);
+	fclose(file);
+	fclose(temp);
+	system("rm dataDogs.dat");
+	system("mv temp.dat dataDogs.dat");
+	
+	cantidadDeRegistros = 0;
+}
+
+void getData(int *hashAp){
+
+	char nombre[32];
+	char tipo[32];	
+	int edad;
+	char raza[32];
+	int estatura;
+	double peso;
+	char sexo;
+	
+	printf("Ingrese el nombre de su mascota:");
+	scanf("%s", nombre);
+	printf("Ingrese el tipo de mascota:");
+	scanf("%s", tipo);
+	printf("Ingrese la edad de su mascota:");
+
+	while(true){	
+		scanf("%d", &edad);
+		if(edad<0){
+			printf("La edad debe ser mayor o igual que 0\n");
+		}else{
+			break;
+		}
+	}
+
+	printf("Ingrese la raza de su mascota:");
+	scanf("%s", raza);
+	printf("Ingrese la estatura de su mascota:");
+
+	while(true){	
+		scanf("%d", &estatura);
+		if(estatura<0){
+			printf("La estatura debe ser positiva\n");
+		}else{
+			break;
+		}
+	}
+
+	printf("Ingrese el peso de su mascota:");
+
+	while(true){	
+		scanf("%lf", &peso);
+		if(peso<0){
+			printf("El peso debe ser positivo\n");
+		}else{
+			break;
+		}
+	}
+
+	printf("Ingrese el sexo de su mascota:");
+
+	while(true){	
+		scanf(" %c", &sexo);
+		if(sexo =='M' || sexo =='F'){
+			break;
+		}else{
+			printf("El sexo de debe ser M o F\n");
+		}
+	}
+	
+	struct DogType *mascota;
+	mascota = malloc(structSize);
+	int len=strlen(nombre)-1;
+
+	if(nombre[len]=='\n'){
+		nombre[len] = '\0';				
+	}
+	
+
+	snprintf(mascota->nombre,32,"%s",nombre);
+	snprintf(mascota->tipo,32,"%s",tipo);
+	mascota->edad = edad;
+	snprintf(mascota->raza,32,"%s",raza);
+	mascota->estatura = estatura;
+	mascota->peso = peso;
+	mascota->sexo = sexo;
+	mascota->last = -1;
+	FILE *file;
+	file = fopen("dataDogs.dat","a+"); 
+	insertar(hashAp, mascota, file);
+	free(mascota);
+	fclose(file);
+}
+//Funcion para ver la información dada en una estructura
+void leer(int a,int clientfd){
+	FILE *file;
+	file = fopen("dataDogs.dat", "r");
+	fseek(file, (a-1)*structSize, SEEK_SET);
+	int r;
+	struct DogType *mascota;
+	mascota = malloc(structSize);
+	fread(mascota, structSize, 1,file);
+	printDogType(mascota, a);
+
+	r = send(clientfd, mascota, structSize,0);
+	if(r == -1){
+		perror("Error en send leer");
+		exit(-1);
+	}
+	fclose(file);
+	free(mascota);
+
+}
+void initHash(int *hashTable){
+	cantidadDeRegistros=0;
+
+	int i;
+	FILE *file;
+	file = fopen("dataDogs.dat", "r");
+
+	for(i = 0; i < HASH_SIZE; i++){
+		hashTable[i]=-1;		
+	}	
+
+	if(file == NULL){ //Verificar si existe
+		return;
+	}
+	
+	fclose(file);
+	system("mv dataDogs.dat temp2.dat");
+	file =fopen("temp2.dat", "r");
+	
+	
+	struct DogType *mascota;
+	mascota = malloc(structSize);
+	FILE *new;
+	new = fopen("dataDogs.dat","a+");
+	int fun;
+	
+	
+	while(fread(mascota, structSize, 1, file)){
+		
+		mascota->last = -1; //0.222 segs
+		
+		fun = funHash(mascota->nombre);//2.208 segs
+		mascota->last = hashTable[fun];
+
+	
+		fwrite(mascota, structSize, 1, new);
+		
+		
+		
+		hashTable[fun] = cantidadDeRegistros;
+		cantidadDeRegistros++;
+								
+	}
+	
+	
+	fclose(new);
+	fclose(file);
+	free(mascota);
+	remove("temp2.dat");
+	
+}
 //[Fecha YYYYMMDDTHHMMSS] Cliente [IP] [inserción | lectura | borrado | búsqueda] [registro
 //| cadena buscada ]
 void log_send(char*cliente, char*funcion, char*busqueda){
@@ -210,15 +390,7 @@ void log_send(char*cliente, char*funcion, char*busqueda){
 //Funcion para cada uno de los hilos para el control de las conexiones con los clientes
 void *function(void *sock_id){
 
-	
-	
-	mascota = malloc(sizeof(struct DogType));
-
-	char trash[32];
-	cantidadDeRegistros=regCant();
-	socklen_t tama;
-	struct sockaddr_in server, client;
-	int servfd, clientfd, r; 
+	int clientfd, r; 
 
 	clientfd =  *(int*)sock_id;
 
@@ -231,8 +403,20 @@ void *function(void *sock_id){
 	puts("Conexión exitosa");	
 	
 	//validar
+
+	struct DogType *mascota;
+	mascota = malloc(structSize);
+
+	int menu = 0;
 	bool flag = true;
-	int menu;
+	char trash[MSGSIZE];
+
+	FILE *file;
+	
+	int hashTable[HASH_SIZE];
+	
+	initHash(hashTable);
+
 	while(flag){
 
 		r=recv(clientfd, &menu,sizeof(int),0);
@@ -248,27 +432,21 @@ void *function(void *sock_id){
 			case 1:
 
 
-				r=recv(clientfd,mascota,STRUCTSIZE,0);
+				r=recv(clientfd,mascota,structSize,0);
 				
-				log_send(inet_ntoa(client.sin_addr),"inserción",mascota->nombre);		
+				log_send("xxx.xxx.xxx","inserción",mascota->nombre);		
 				//validar
 				if(r==-1){
 					perror("Error en recv de ingresar datos...\n");
 					exit(-1);
 				}
 
-				printDogType(mascota);
-
-				FILE *file;
-				file = fopen("dataDogs.dat", "a+");
-				fwrite(mascota, sizeof(struct DogType),1, file);
+				file = fopen("dataDogs.dat","a+");
+				insertar(hashTable,mascota,file);
 				fclose(file);
-				
-				
 				break;
 			
 			case 2:
-				cantidadDeRegistros=regCant();
 				r = send(clientfd, (int *)&cantidadDeRegistros, sizeof(int),0);
 				if(r == -1){
 					perror("Error en send case 2");
@@ -283,19 +461,21 @@ void *function(void *sock_id){
 					exit(-1);
 				}
 				if(menu <= cantidadDeRegistros && menu>0){					
-					leer(menu);
-					r = send(clientfd, mascota, STRUCTSIZE,0);
+					leer(menu,clientfd);
+					
 					sprintf(trash,"%d",menu);
-					log_send(inet_ntoa(client.sin_addr),"lectura",trash);
-					if(r == -1){
-						perror("Error en send");
-						exit(-1);
-					}
+					log_send("xxx.xxx.xxx","lectura",trash);
+					
 				}else{
 					printf("El Numero de registro no es valido\n");
 				}
 		  		break;
 		  	case 3:
+				r = send(clientfd, (int *)&cantidadDeRegistros, sizeof(int),0);
+				if(r == -1){
+					perror("Error en send case 2");
+					exit(-1);
+				}
 				r=recv(clientfd, &menu,sizeof(int),0);
 				printf("%i\n",menu);
 				//validar
@@ -303,23 +483,23 @@ void *function(void *sock_id){
 					perror("Error en recv del case 3\n");
 					exit(-1);
 				}
-				
 				if(menu <= cantidadDeRegistros && menu>0){
 		  			removeFromFile(menu);
 					sprintf(trash,"%d",menu);
-					log_send(inet_ntoa(client.sin_addr),"borrado",trash);
+					log_send("xxx.xxx.xxx","borrado",trash);
+					initHash(hashTable);
 				}else{
 					printf("El Numero de registro no es valido\n");
 				}
-						  		
-		  		
 		  		break;
-		  	/*case 4:
-		  		printf("Ingrese el nombre de la mascota: ");
-				scanf("%s",busqueda);
-				search(busqueda,hashTable);
+		  	case 4:
+		  		r=recv(clientfd,trash,MSGSIZE,0);
+				if(r==-1){
+					perror("Error en recv del case 4\n");
+					exit(-1);
+				}
+				search(trash,hashTable,clientfd);
 				break;
-		  	*/
 			case 5:
 				flag=false;
 				break;
@@ -329,91 +509,94 @@ void *function(void *sock_id){
 			}
 
 	}
-
-	close(clientfd);
-	close(servfd);
-	cantidad_clientes--;
-	
-		
-	
-}
-
-int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509/hash-function-for-string
-	int hash, i;
-	int len = strlen(str);
-	
-    for(hash = i = 0; i < len; ++i)
-    {
-        hash += str[i];
-        hash += (hash << 10);
-        hash ^= (hash >> 6);
-    }
-    
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
-    return (int)fabs(hash % HASH_SIZE);
-}
-
-void printDogType(){
-	printf("\nNombre: \t%s\n", mascota->nombre);
-	printf("Tipo: \t\t%s\n", mascota->tipo);
-	printf("Edad: \t\t%i\n", mascota->edad);
-	printf("Raza: \t\t%s\n", mascota->raza);
-	printf("Estatura: \t%i\n", mascota->estatura);
-	printf("Peso: \t\t%.2lf\n", mascota->peso);
-	printf("Sexo: \t\t%c\n\n", mascota->sexo);
-}
-int regCant(){
-	FILE *file;
-	file = fopen("dataDogs.dat", "r");
-	if (file==NULL){
-		return 0;
-	}else{
-		
-		int size=0;
-
-		fseek(file, 0, SEEK_END); // seek to end of file
-		size = ftell(file); // get current file pointer
-		fseek(file, 0, SEEK_SET);
-	
-		fclose(file);
-		return(size/104);
-	}
-}
-void leer(int a){
-	FILE *file;
-	file = fopen("dataDogs.dat", "r");
-
-	fseek(file, (a-1)*104, SEEK_SET);
-
-	fread(mascota, sizeof(struct DogType),1,file);
-
-	printDogType(mascota);
-
 	fclose(file);
-};
-void removeFromFile(int index){
-	FILE *file;
-	FILE *temp;
-	temp = fopen("temp.dat","w+");
-	file = fopen("dataDogs.dat","r");
-		
-	struct DogType *mascota;
-	mascota = malloc(sizeof(struct DogType));
-	
-	for(int i = 1; i<=cantidadDeRegistros; i++){
-		fread(mascota, sizeof(struct DogType),1,file);		
-		if(i!=index){
-			fwrite(mascota, sizeof(struct DogType),1, temp);
-		}
-	}
-
 	free(mascota);
-	fclose(file);
-	fclose(temp);
-	system("rm dataDogs.dat");
-	system("mv temp.dat dataDogs.dat");
-
+	close(clientfd);
+	cantidad_clientes--;	
 }
+
+int main(int argc, char const *argv[]){
+	pthread_t hilo;
+
+	socklen_t tama;
+	struct sockaddr_in server, client;
+	int servfd, clientfd, r; 
+
+	cantidad_clientes = 0;
+//-----------------------------------------------------------------------------------------------------------------------------------------
+//  Creacion del socket() servfd	
+//-----------------------------------------------------------------------------------------------------------------------------------------	
+	//Creación del descriptor del socket para el servidor
+	//Opciones son IPv4, TCP, 0 par IP 
+	servfd = socket(AF_INET, SOCK_STREAM, 0);
+	if(servfd == -1){
+		perror("Error en socket");
+		exit(-1);
+	}
+	puts("Creacion del socket");
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// configuracion para poder utilizar el sockect repetidas veces
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+	// configuracion para poder utilizar el sockect repetidas veces y dar configuraciones al puerto
+	if (setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &(int){ 1 }, sizeof(int)) < 0){
+    		perror("setsockopt(SO_REUSEADDR) failed");
+	}
+
+	//Aqui se fijan los parametros de configuración necesarios para la estructura del servidor
+	server.sin_family = AF_INET;
+	server.sin_port = htons(PORT);
+	server.sin_addr.s_addr = INADDR_ANY;
+	bzero(server.sin_zero,8);
+	
+	
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// creacion bind
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+	//Esta función se encarga de ligar al socket servfd con el puerto que utilizaremos para la transmisión , aqui &server es un apuntador a esa estructura que contiene los parametros relacionados con el numero de puerto y la dirección ip
+	r = bind(servfd, (struct sockaddr *)&server, sizeof(struct sockaddr_in));
+	if(r == -1){
+		perror("Error en bind");
+		exit(-1);
+	}
+	puts("Bind del socket creado");
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// El socket entra en modo escucha hasta aceptar la conexion
+//-----------------------------------------------------------------------------------------------------------------------------------------
+	
+	r = listen(servfd, BACKLOG);
+	if(r == -1){
+		perror("Error en listen");
+		exit(-1);
+	}
+
+	puts("Esperando conexion...");
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// Se conectan el cliente y el servidor
+//-----------------------------------------------------------------------------------------------------------------------------------------
+	while(true){
+		clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
+		cantidad_clientes++;
+		if(cantidad_clientes > MAXCLIENTS){
+			puts("Clientes máximos alcanzados");
+			send(clientfd, "Exit",MSGSIZE,0);
+		}
+		if(clientfd == -1){
+			perror("Error en accept");
+			exit(-1);
+		}
+		printf("Conexión del cliente :%i\n ",cantidad_clientes);
+		if(pthread_create(&hilo, NULL , function , (void*) &clientfd)<0){
+				perror("Error al crear los hilos");
+				exit(-1);
+			}
+	}
+	
+	return 0;
+}
+
+
+
 

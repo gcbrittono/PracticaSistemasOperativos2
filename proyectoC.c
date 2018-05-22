@@ -4,9 +4,8 @@
 #include<string.h>
 #include<ctype.h>
 #include<math.h>
-#include<time.h>
+
 #define HASH_SIZE 1000
-#define nano 1000000000
 
 struct DogType {
 	char nombre[32];
@@ -61,7 +60,6 @@ void insertar(int *hashTable, struct DogType *mascota, FILE *file ){
 	int fun = funHash(mascota->nombre);
 	
 	mascota->last = hashTable[fun];
-	printf(">>%i\n", hashTable[fun]);
 	fwrite(mascota, structSize, 1, file);
 	
 	hashTable[fun] = cantidadDeRegistros;
@@ -76,15 +74,10 @@ void printDogType(struct DogType *mascota,int pos){
 	printf("Estatura: \t%i\n", mascota->estatura);
 	printf("Peso: \t\t%.2lf\n", mascota->peso);
 	printf("Sexo: \t\t%c\n", mascota->sexo);
-	if(mascota->last == -1){
-		printf("Last: \t\túltimo\n");
-	}else{
-		printf("Last: \t\t%i\n", mascota->last + 1);
-	}
-	
+	printf("Last: \t\t%i\n", mascota->last + 1);
 	printf("Posicion: \t%i\n\n", pos);
 }
-
+/*
 void leerTodo(){
 	FILE *ach;
 	int i=0;
@@ -104,15 +97,14 @@ void leerTodo(){
 	printf("----------Finalizo---------\n");
 	fclose(ach);
 	free(mascota);
-}
-int search(char* nombre, int *hashTable){
+}*/
+void search(char* nombre, int *hashTable){
 	
-	int salida = 0;
 	int posicion = hashTable[funHash(nombre)];
 	FILE *file;
 	file = fopen("dataDogs.dat","r");
 	if(file == NULL){
-		return 0;
+		return ;
 	}
 	struct DogType *mascota;
 	mascota = malloc(structSize);
@@ -130,14 +122,12 @@ int search(char* nombre, int *hashTable){
 		if(strcmp(nombreS,nombre)==0){
 			printDogType(mascota,posicion + 1);
 			printf("\n");
-			salida++;
 		}
 		posicion=mascota->last;			
 	}
 	
 	fclose(file);
 	free(mascota);
-	return salida;
 }
 
 void removeFromFile(int index){
@@ -287,7 +277,11 @@ void initHash(int *hashTable){
 	int i;
 	FILE *file;
 	file = fopen("dataDogs.dat", "r");
-	
+
+	for(i = 0; i < HASH_SIZE; i++){
+		hashTable[i]=-1;		
+	}	
+
 	if(file == NULL){ //Verificar si existe
 		return;
 	}
@@ -295,9 +289,7 @@ void initHash(int *hashTable){
 	fclose(file);
 	system("mv dataDogs.dat temp2.dat");
 	file =fopen("temp2.dat", "r");
-	for(i = 0; i < HASH_SIZE; i++){
-		hashTable[i]=-1;		
-	}
+	
 	
 	struct DogType *mascota;
 	mascota = malloc(structSize);
@@ -336,13 +328,12 @@ int main(){
 	int menu = 0;
 	bool flag = true;
 	char trash[32];
-	int registerToRead=0;
+
 	FILE *archivo;
-	char busqueda[32];
+	
 	int hashTable[HASH_SIZE];
 	
 	initHash(hashTable);
-	int i;
 	while(flag){
 		/*for(i=0;i<HASH_SIZE;i++){
 			if(hashTable[i]!=-1){
@@ -360,9 +351,9 @@ int main(){
 			case 2:
 
 				printf("El numero de registros es: %i\nIngrese el Numero de registro: ", cantidadDeRegistros);
-				scanf("%i",&registerToRead);
-				if(registerToRead <= cantidadDeRegistros && registerToRead>0){
-					read(registerToRead);
+				scanf("%i",&menu);
+				if(menu <= cantidadDeRegistros && menu>0){
+					read(menu);
 				}else{
 					printf("El Numero de registro no es valido\n");
 				}
@@ -370,20 +361,18 @@ int main(){
 		  	case 3:
 
 				printf("El numero de registros es: %i\nIngrese el Numero de registro: ", cantidadDeRegistros);
-				scanf("%i",&registerToRead);
-				if(registerToRead <= cantidadDeRegistros && registerToRead>0){
-		  			removeFromFile(registerToRead);
+				scanf("%i",&menu);
+				if(menu <= cantidadDeRegistros && menu>0){
+		  			removeFromFile(menu);
 					initHash(hashTable);
 				}else{
 					printf("El Numero de registro no es valido\n");
 				}
-						  		
-		  		
 		  		break;
 		  	case 4:
 		  		printf("Ingrese el nombre de la mascota: ");
-				scanf("%s",busqueda);
-				search(busqueda,hashTable);
+				scanf("%s",trash);
+				search(trash,hashTable);
 				break;
 		  	case 5:
 				flag=false;
