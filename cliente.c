@@ -144,12 +144,14 @@ int main(){
 	if(clientfd==-1){
 		perror("Error en socket del clientfd\n");
 		exit(-1);
-	}
-
+	}	
+	char msg[MSGSIZE];
+	printf("Ingrese la direccion IP(127.0.0.1):");
+	scanf("%s",msg);
 	//se inicializan las variables de la estructura de destino	
 	client.sin_family= AF_INET;
 	client.sin_port = htons(PORT);
-	client.sin_addr.s_addr= inet_addr("127.0.0.1");
+	client.sin_addr.s_addr= inet_addr(msg);
 	bzero(client.sin_zero,8);
 
 	//Conexión con el cliente
@@ -162,7 +164,7 @@ int main(){
 
 	int menu = 0;
 	bool flag = true;
-	char msg[MSGSIZE];
+
 
 	r=recv(clientfd,msg,MSGSIZE,0);
 	//validar

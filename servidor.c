@@ -52,6 +52,11 @@ struct DogType {
 	int last;
 };
 
+struct setVar {
+	int clientefd;
+	char direccionIp[32];
+};
+
 int structSize = sizeof(struct DogType);
 
 void toLowerStr(char *str){
@@ -389,11 +394,15 @@ void log_send(char*cliente, char*funcion, char*busqueda){
 }
 
 //Funcion para cada uno de los hilos para el control de las conexiones con los clientes
-void *function(void *sock_id){
+void function(struct setVar *sock_id){
 
-	int clientfd, r; 
+	int clientfd, r;
 
-	clientfd =  *(int*)sock_id;
+	char direccion[32]; 
+
+	clientfd =  sock_id->clientefd;
+	
+	snprintf(direccion,32,"%s",sock_id->direccionIp);	
 
 	r = send(clientfd, "Conexion Exitosa", MSGSIZE,0);
 	if(r == -1){
@@ -431,7 +440,7 @@ void *function(void *sock_id){
 
 				r=recv(clientfd,mascota,structSize,0);
 				
-				log_send("xxx.xxx.xxx","inserción",mascota->nombre);		
+				log_send(direccion,"inserción",mascota->nombre);		
 				//validar
 				if(r==-1){
 					perror("Error en recv de ingresar datos...\n");
@@ -461,7 +470,7 @@ void *function(void *sock_id){
 					leer(menu,clientfd);
 					
 					sprintf(trash,"%d",menu);
-					log_send("xxx.xxx.xxx","lectura",trash);
+					log_send(direccion,"lectura",trash);
 					
 				}else{
 					printf("El Numero de registro no es valido\n");
@@ -483,7 +492,7 @@ void *function(void *sock_id){
 				if(menu <= cantidadDeRegistros && menu>0){
 		  			removeFromFile(menu);
 					sprintf(trash,"%d",menu);
-					log_send("xxx.xxx.xxx","borrado",trash);
+					log_send(direccion,"borrado",trash);
 					initHash(hashTable);
 				}else{
 					printf("El Numero de registro no es valido\n");
@@ -496,6 +505,7 @@ void *function(void *sock_id){
 					exit(-1);
 				}
 				search(trash,hashTable,clientfd);
+				log_send(direccion,"búsqueda",trash);
 				break;
 			case 5:
 				flag=false;
@@ -573,6 +583,8 @@ int main(){
 //-----------------------------------------------------------------------------------------------------------------------------------------
 // Se conectan el cliente y el servidor
 //-----------------------------------------------------------------------------------------------------------------------------------------
+	struct setVar *var;
+	var = malloc(sizeof(struct setVar));	
 	while(true){
 		clientfd = accept(servfd, (struct sockaddr *)&client, &tama);
 		cantidad_clientes++;
@@ -584,8 +596,10 @@ int main(){
 				perror("Error en accept");
 				exit(-1);
 			}
-			printf("Conexión del cliente :%i\n ",cantidad_clientes);
-			if(pthread_create(&hilo, NULL , function , (void*) &clientfd)<0){
+			printf("Conexión del cliente :%i\n",cantidad_clientes);
+			var->clientefd=clientfd;
+			inet_ntop(AF_INET,&client.sin_addr.s_addr,var->direccionIp,32);
+			if(pthread_create(&hilo, NULL , function , var)<0){
 				perror("Error al crear los hilos");
 				exit(-1);
 			}
