@@ -37,6 +37,7 @@ struct in_addr{
 };
 */
 
+int hashTable[HASH_SIZE];
 int cantidad_clientes;
 int cantidadDeRegistros = 0;
 
@@ -83,14 +84,14 @@ int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509
     
     return (int)fabs(hash % HASH_SIZE);
 }
-void insertar(int *hashTable, struct DogType *mascota, FILE *file ){
+void insertar(int *hashTable1, struct DogType *mascota, FILE *file ){
 	
 	int fun = funHash(mascota->nombre);
 	
-	mascota->last = hashTable[fun];
+	mascota->last = hashTable1[fun];
 	fwrite(mascota, structSize, 1, file);
 	
-	hashTable[fun] = cantidadDeRegistros;
+	hashTable1[fun] = cantidadDeRegistros;
 	cantidadDeRegistros++;
 }
 
@@ -107,9 +108,9 @@ void printDogType(struct DogType *mascota,int pos){
 	printf("Posicion: \t%i\n\n", pos);
 }
 
-void search(char* nombre, int *hashTable, int clientfd){
+void search(char* nombre, int *hashTable1, int clientfd){
 	
-	int posicion = hashTable[funHash(nombre)];
+	int posicion = hashTable1[funHash(nombre)];
 	FILE *file;
 	file = fopen("dataDogs.dat","r");
 	if(file == NULL){
@@ -280,7 +281,7 @@ void leer(int a,int clientfd){
 	free(mascota);
 
 }
-void initHash(int *hashTable){
+void initHash(int *hashTable1){
 	cantidadDeRegistros=0;
 
 	int i;
@@ -288,7 +289,7 @@ void initHash(int *hashTable){
 	file = fopen("dataDogs.dat", "r");
 
 	for(i = 0; i < HASH_SIZE; i++){
-		hashTable[i]=-1;		
+		hashTable1[i]=-1;		
 	}	
 
 	if(file == NULL){ //Verificar si existe
@@ -312,14 +313,14 @@ void initHash(int *hashTable){
 		mascota->last = -1; //0.222 segs
 		
 		fun = funHash(mascota->nombre);//2.208 segs
-		mascota->last = hashTable[fun];
+		mascota->last = hashTable1[fun];
 
 	
 		fwrite(mascota, structSize, 1, new);
 		
 		
 		
-		hashTable[fun] = cantidadDeRegistros;
+		hashTable1[fun] = cantidadDeRegistros;
 		cantidadDeRegistros++;
 								
 	}
@@ -413,10 +414,6 @@ void *function(void *sock_id){
 
 	FILE *file;
 	
-	int hashTable[HASH_SIZE];
-	
-	initHash(hashTable);
-
 	while(flag){
 
 		r=recv(clientfd, &menu,sizeof(int),0);
@@ -509,13 +506,13 @@ void *function(void *sock_id){
 			}
 
 	}
-	fclose(file);
 	free(mascota);
 	close(clientfd);
 	cantidad_clientes--;	
 }
 
-int main(int argc, char const *argv[]){
+int main(){
+	initHash(hashTable);
 	pthread_t hilo;
 
 	socklen_t tama;
@@ -582,17 +579,19 @@ int main(int argc, char const *argv[]){
 		if(cantidad_clientes > MAXCLIENTS){
 			puts("Clientes máximos alcanzados");
 			send(clientfd, "Exit",MSGSIZE,0);
-		}
-		if(clientfd == -1){
-			perror("Error en accept");
-			exit(-1);
-		}
-		printf("Conexión del cliente :%i\n ",cantidad_clientes);
-		if(pthread_create(&hilo, NULL , function , (void*) &clientfd)<0){
+		} else{
+			if(clientfd == -1){
+				perror("Error en accept");
+				exit(-1);
+			}
+			printf("Conexión del cliente :%i\n ",cantidad_clientes);
+			if(pthread_create(&hilo, NULL , function , (void*) &clientfd)<0){
 				perror("Error al crear los hilos");
 				exit(-1);
 			}
+		}
 	}
+
 	
 	return 0;
 }
