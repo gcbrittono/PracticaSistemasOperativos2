@@ -15,8 +15,10 @@
 #include <sys/select.h>
 #include <pthread.h>
 #include <time.h>
+#include <semaphore.h>
 
 
+#define SEMINIT 1
 #define PORT 3535
 #define HASH_SIZE 1000
 #define BACKLOG 8
@@ -24,6 +26,23 @@
 #define MAXCLIENTS 4
 
 
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// Definición de variables de control threads
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+
+//MUTEX----------------------------------------------------------------------------------------------------------------------------------------
+/*Definición del mutex*/
+pthread_mutex_t mutex;
+
+//SEMAFOROS----------------------------------------------------------------------------------------------------------------------------------------
+/*definición de la variable semaforo*/
+sem_t semaforo;
+
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------------------
 
 
 /*struct sockaddr_in{
@@ -90,7 +109,13 @@ int funHash(char* str){ // tomado de https://stackoverflow.com/questions/7666509
     return (int)fabs(hash % HASH_SIZE);
 }
 void insertar(int *hashTable1, struct DogType *mascota, FILE *file ){
+	/*Adquiere el lock para el mutex*/
+	//pthread_mutex_lock(&mutex);
+
+	/*Adquiere el semaforo para el inicio*/
+	//sem_wait(&semaforo);
 	
+	/*Seccion critica*/
 	int fun = funHash(mascota->nombre);
 	
 	mascota->last = hashTable1[fun];
@@ -98,6 +123,14 @@ void insertar(int *hashTable1, struct DogType *mascota, FILE *file ){
 	
 	hashTable1[fun] = cantidadDeRegistros;
 	cantidadDeRegistros++;
+	/*seccion critica*/
+
+	/*Suelta el semaforo*/
+	//sem_post(&semaforo);
+
+
+	/*Suelta el valor del lock del mutex*/
+	pthread_mutex_unlock(&mutex);
 }
 
 //Funcion para mostrar en pantalla la estructura 
@@ -165,6 +198,14 @@ void removeFromFile(int index){
 	temp = fopen("temp.dat","w+");
 	file = fopen("dataDogs.dat","r");
 	fseek(file, 0, SEEK_SET);
+
+	/*Adquiere el lock del mutex*/
+	//pthread_mutex_lock(&mutex);
+
+	/*Adquiere el semaforo para el inicio*/
+	//sem_wait(&semaforo);
+
+	/*Sección crítica*/
 	struct DogType *mascota;
 	mascota = malloc(structSize);
 	
@@ -173,6 +214,15 @@ void removeFromFile(int index){
 			fwrite(mascota, structSize,1, temp);
 		}
 	}
+	/*Seccion critica*/
+
+	
+	/*Suelta el semaforo*/
+	//sem_post(&semaforo);
+
+
+	/*Libera el lock del mutex*/
+	//pthread_mutex_unlock(&mutex);
 
 	free(mascota);
 	fclose(file);
@@ -446,7 +496,7 @@ void function(struct setVar *sock_id){
 					perror("Error en recv de ingresar datos...\n");
 					exit(-1);
 				}
-
+				//Seccion critica para escritura func insertar
 				file = fopen("dataDogs.dat","a+");
 				insertar(hashTable,mascota,file);
 				fclose(file);
@@ -490,6 +540,7 @@ void function(struct setVar *sock_id){
 					exit(-1);
 				}
 				if(menu <= cantidadDeRegistros && menu>0){
+					//Seccion critica para escritura func removeFromFile
 		  			removeFromFile(menu);
 					sprintf(trash,"%d",menu);
 					log_send(direccion,"borrado",trash);
@@ -522,6 +573,7 @@ void function(struct setVar *sock_id){
 }
 
 int main(){
+	
 	initHash(hashTable);
 	pthread_t hilo;
 
@@ -530,6 +582,17 @@ int main(){
 	int servfd, clientfd, r; 
 
 	cantidad_clientes = 0;
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+//  creación de variables control threads	
+//-----------------------------------------------------------------------------------------------------------------------------------------	
+//MUTEX----------------------------------------------------------------------------------------------------------------------------------------
+/*Creación del lock*/
+//pthread_mutex_init(&mutex,NULL);
+//SEMAFORO----------------------------------------------------------------------------------------------------------------------------------------
+/*Iniciación de la variable sem_t en 1*/
+//sem_init(&semaforo,0,SEMINIT);
+
 //-----------------------------------------------------------------------------------------------------------------------------------------
 //  Creacion del socket() servfd	
 //-----------------------------------------------------------------------------------------------------------------------------------------	
