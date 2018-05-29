@@ -496,7 +496,7 @@ void function(struct setVar *sock_id){
 					perror("Error en recv de ingresar datos...\n");
 					exit(-1);
 				}
-				//Seccion critica para escritura func insertar
+				//Seccion critica para escritura func insertar .
 				file = fopen("dataDogs.dat","a+");
 				insertar(hashTable,mascota,file);
 				fclose(file);
@@ -516,9 +516,11 @@ void function(struct setVar *sock_id){
 					perror("Error en recv del case 2\n");
 					exit(-1);
 				}
-				if(menu <= cantidadDeRegistros && menu>0){					
-					leer(menu,clientfd);
+				if(menu <= cantidadDeRegistros && menu>0){	
 					
+					//Sección critica varios archivos pueden abrirse al tiempo				
+					leer(menu,clientfd);
+					//
 					sprintf(trash,"%d",menu);
 					log_send(direccion,"lectura",trash);
 					
@@ -545,6 +547,7 @@ void function(struct setVar *sock_id){
 					sprintf(trash,"%d",menu);
 					log_send(direccion,"borrado",trash);
 					initHash(hashTable);
+					//
 				}else{
 					printf("El Numero de registro no es valido\n");
 				}
@@ -555,6 +558,7 @@ void function(struct setVar *sock_id){
 					perror("Error en recv del case 4\n");
 					exit(-1);
 				}
+				//Sección critica varios archivos pueden abrirse al tiempo				
 				search(trash,hashTable,clientfd);
 				log_send(direccion,"búsqueda",trash);
 				break;
