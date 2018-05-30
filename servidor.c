@@ -496,7 +496,7 @@ void function(struct setVar *sock_id){
 					perror("Error en recv de ingresar datos...\n");
 					exit(-1);
 				}
-				//Seccion critica para escritura func insertar .
+				//Seccion critica para escritura func insertar 
 				file = fopen("dataDogs.dat","a+");
 				insertar(hashTable,mascota,file);
 				fclose(file);
